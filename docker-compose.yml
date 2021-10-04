@@ -1,0 +1,60 @@
+version: "3.3"
+services:
+  nginx:
+    depends_on:
+      - client
+      - backend
+    restart: always # because it is routing traffic to our entire app
+    build:
+      dockerfile: Dockerfile
+      context: ./nginx
+    ports:
+      - '80:80'
+    networks:
+      - app-network
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+     - '3000:3000'
+    volumes:
+      - /app/node_modules # Inside the container, don't try to override this folder, just leave as is
+      - ./client:/app
+    restart: on-failure
+    container_name: client
+    networks:
+      app-network:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+     - '3001:3001'
+    restart: on-failure
+    container_name: backend
+    volumes:
+      - /app/node_modules # Inside the container, don't try to override this folder, just leave as is
+      - ./backend:/app
+    env_file:
+      - ./env/backend.env
+    networks:
+      app-network:
+  mongodb:
+    image: 'mongo'
+    container_name: 'mongo-db'
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes: 
+      - ./db/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - dbdata:/data/db
+    env_file:
+      - ./env/mongo.env
+    networks:
+      - app-network
+networks:
+  app-network:
+    driver: bridge
+volumes:
+  dbdata:
